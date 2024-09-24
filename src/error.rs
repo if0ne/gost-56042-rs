@@ -13,6 +13,7 @@ pub enum Error {
     WrongPair,
     WrongRequiredREquisite,
     WrongRequiredRequisiteOrder,
+    WrongTechCode(String),
 }
 
 impl Display for Error {
