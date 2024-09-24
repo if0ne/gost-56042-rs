@@ -4,14 +4,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
-    BufferTooSmall,
+    CorruptedHeader,
     EncodingError,
     RequiredRequisiteNotPresented,
     UnsupportedVersion,
     WrongEncodingCode(u8),
     WrongFormatId,
     WrongPair,
-    WrongRequiredREquisite,
     WrongRequiredRequisiteOrder,
     WrongTechCode(String),
 }

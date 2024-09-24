@@ -85,32 +85,11 @@ impl Payment {
         PaymentBuilder::default()
     }
 
-    pub fn add_additional_requisite(&mut self, requisite: Requisite) {
-        assert!(!matches!(requisite, Requisite::Name(_)));
-        assert!(!matches!(requisite, Requisite::PersonalAcc(_)));
-        assert!(!matches!(requisite, Requisite::BankName(_)));
-        assert!(!matches!(requisite, Requisite::BIC(_)));
-        assert!(!matches!(requisite, Requisite::CorrespAcc(_)));
-
-        self.requisites.push(requisite);
+    pub fn parser() -> PaymentParser {
+        PaymentParser::default()
     }
 
-    pub fn extend_additional_requisites(
-        &mut self,
-        requisites: impl IntoIterator<Item = Requisite>,
-    ) {
-        let requisites = requisites.into_iter().inspect(|requisite| {
-            assert!(!matches!(requisite, Requisite::Name(_)));
-            assert!(!matches!(requisite, Requisite::PersonalAcc(_)));
-            assert!(!matches!(requisite, Requisite::BankName(_)));
-            assert!(!matches!(requisite, Requisite::BIC(_)));
-            assert!(!matches!(requisite, Requisite::CorrespAcc(_)));
-        });
-
-        self.requisites.extend(requisites);
-    }
-
-    pub fn to_string(&self) -> String {
+    pub fn to_gost_format(&self) -> String {
         let mut buffer = String::with_capacity(308);
         self.write_to(&mut buffer);
         buffer
@@ -137,10 +116,59 @@ impl Payment {
             buffer.push_str(requisite.value());
         }
     }
+}
 
-    pub fn from_bytes(bytes: &[u8]) -> super::Result<Self> {
+#[derive(Debug)]
+pub struct PaymentParser {
+    version_id: [u8; 4],
+}
+
+impl PaymentParser {
+    pub fn with_version(mut self, version_id: [u8; 4]) -> Self {
+        self.version_id = version_id;
+        self
+    }
+
+    pub fn from_str(&self, val: &str) -> super::Result<Payment> {
+        let header = self.read_payment_header(val)?;
+
+        let data = val[8..].to_string();
+
+        let requisites = self.read_requisites(&data, header.separator as char)?;
+
+        self.validate_required_requisites(&requisites)?;
+
+        Ok(Payment { header, requisites })
+    }
+
+    pub fn from_bytes(&self, bytes: &[u8]) -> super::Result<Payment> {
+        let header = self.read_payment_header_bytes(bytes)?;
+
+        let data = self.decode_payment_body(header.encoding, &bytes[8..])?;
+
+        let requisites = self.read_requisites(&data, header.separator as char)?;
+
+        self.validate_required_requisites(&requisites)?;
+
+        Ok(Payment { header, requisites })
+    }
+}
+
+impl PaymentParser {
+    fn read_payment_header(&self, val: &str) -> super::Result<PaymentHeader> {
+        let bytes = val.chars().take(8).map(|c| c as u8).collect::<Vec<_>>();
+        let header = self.read_payment_header_bytes(&bytes)?;
+
+        if header.encoding != PaymentEncoding::Utf8 {
+            return Err(super::Error::CorruptedHeader);
+        }
+
+        Ok(header)
+    }
+
+    fn read_payment_header_bytes(&self, bytes: &[u8]) -> super::Result<PaymentHeader> {
         if bytes.len() < 8 {
-            return Err(super::Error::BufferTooSmall);
+            return Err(super::Error::CorruptedHeader);
         }
 
         let format_id = &bytes[0..2];
@@ -150,15 +178,26 @@ impl Payment {
         }
 
         let version = &bytes[2..6];
-        if version != VERSION_0001_BYTES {
+        if version != self.version_id {
             return Err(super::Error::UnsupportedVersion);
         }
 
         let encoding: PaymentEncoding = bytes[6].try_into()?;
         let separator = bytes[7];
 
-        let bytes = &bytes[8..];
+        Ok(PaymentHeader {
+            format_id: FORMAT_ID_BYTES,
+            version: self.version_id,
+            encoding,
+            separator,
+        })
+    }
 
+    fn decode_payment_body(
+        &self,
+        encoding: PaymentEncoding,
+        bytes: &[u8],
+    ) -> super::Result<String> {
         let data = match encoding {
             PaymentEncoding::Win1251 => encoding::all::WINDOWS_1251
                 .decode(bytes, encoding::DecoderTrap::Strict)
@@ -171,27 +210,50 @@ impl Payment {
                 .map_err(|_| super::Error::EncodingError)?,
         };
 
-        let kv = data.split(separator as char);
+        Ok(data)
+    }
 
-        let mut requisites = vec![];
+    fn read_requisites(&self, data: &str, separator: char) -> super::Result<Vec<Requisite>> {
+        let kv = data.split(separator);
 
-        for kv in kv {
-            let Some(additional_pair) = kv.split_once('=') else {
-                continue;
-            };
+        kv.into_iter()
+            .map(|kv| kv.split_once('=').ok_or(super::Error::WrongPair))
+            .flat_map(|kv| kv.map(|kv| kv.try_into()))
+            .collect()
+    }
 
-            requisites.push(additional_pair.try_into()?);
+    fn validate_required_requisites(&self, requisites: &[Requisite]) -> super::Result<()> {
+        let mut req = requisites.iter().take(5);
+
+        if !matches!(req.next(), Some(Requisite::Name(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder);
         }
 
-        Ok(Payment {
-            header: PaymentHeader {
-                format_id: FORMAT_ID_BYTES,
-                version: VERSION_0001_BYTES,
-                encoding,
-                separator,
-            },
-            requisites,
-        })
+        if !matches!(req.next(), Some(Requisite::PersonalAcc(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder);
+        }
+
+        if !matches!(req.next(), Some(Requisite::BankName(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder);
+        }
+
+        if !matches!(req.next(), Some(Requisite::BIC(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder);
+        }
+
+        if !matches!(req.next(), Some(Requisite::CorrespAcc(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder);
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for PaymentParser {
+    fn default() -> Self {
+        Self {
+            version_id: VERSION_0001_BYTES,
+        }
     }
 }
 
@@ -441,7 +503,7 @@ impl TryFrom<(&str, &str)> for Requisite {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TechCode {
     _01,
     _02,
@@ -503,7 +565,7 @@ impl TechCode {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PaymentEncoding {
     Win1251 = b'1',
@@ -548,16 +610,33 @@ mod tests {
             correstp_acc: "30101810400000000225".to_string(),
         });
 
-        let payment = payment.to_string();
+        let payment = payment.to_gost_format();
 
         assert_eq!(payment, "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225")
     }
 
     #[test]
-    fn decoding_test() {
+    fn decoding_bytes_test() {
         let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225".as_bytes();
 
-        let parsed_payment = Payment::from_bytes(raw);
+        let parsed_payment = Payment::parser().from_bytes(raw);
+
+        let payment = Payment::builder().build(RequiredRequisite {
+            name: "ООО «Три кита»".to_string(),
+            personal_acc: "40702810138250123017".to_string(),
+            bank_name: "ОАО \"БАНК\"".to_string(),
+            bic: "044525225".to_string(),
+            correstp_acc: "30101810400000000225".to_string(),
+        });
+
+        assert_eq!(parsed_payment, Ok(payment));
+    }
+
+    #[test]
+    fn decoding_string_test() {
+        let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225";
+
+        let parsed_payment = Payment::parser().from_str(raw);
 
         let payment = Payment::builder().build(RequiredRequisite {
             name: "ООО «Три кита»".to_string(),
