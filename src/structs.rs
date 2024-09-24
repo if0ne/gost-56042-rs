@@ -9,39 +9,88 @@ pub struct Payment {
     requisites: Vec<Requisite>,
 }
 
-impl Payment {
-    pub fn new(requisites: RequiredRequisite) -> Self {
-        Self::with_splitter('|', requisites)
+#[derive(Debug)]
+pub struct PaymentBuilder {
+    payment: Payment,
+}
+
+impl PaymentBuilder {
+    pub fn with_version(mut self, version: [u8; 4]) -> Self {
+        self.payment.header.version = version;
+        self
     }
 
-    pub fn with_splitter(splitter: char, requisite: RequiredRequisite) -> Self {
-        assert!(splitter.is_ascii());
+    pub fn with_encdoing(mut self, encdoing: PaymentEncoding) -> Self {
+        self.payment.header.encoding = encdoing;
+        self
+    }
 
-        let requisites = vec![
-            Requisite::Name(requisite.name),
-            Requisite::PersonalAcc(requisite.personal_acc),
-            Requisite::BankName(requisite.bank_name),
-            Requisite::BIC(requisite.bic),
-            Requisite::CorrespAcc(requisite.correstp_acc),
+    pub fn with_separator(mut self, separator: char) -> Self {
+        assert!(separator.is_ascii());
+
+        self.payment.header.separator = separator as u8;
+        self
+    }
+
+    pub fn with_additional_requisites(
+        mut self,
+        requisites: impl IntoIterator<Item = Requisite>,
+    ) -> Self {
+        let requisites = requisites.into_iter().inspect(|requisite| {
+            assert!(!matches!(requisite, Requisite::Name(_)));
+            assert!(!matches!(requisite, Requisite::PersonalAcc(_)));
+            assert!(!matches!(requisite, Requisite::BankName(_)));
+            assert!(!matches!(requisite, Requisite::BIC(_)));
+            assert!(!matches!(requisite, Requisite::CorrespAcc(_)));
+        });
+
+        self.payment.requisites.extend(requisites);
+        self
+    }
+
+    pub fn build(mut self, requisites: RequiredRequisite) -> Payment {
+        let required_requisites = vec![
+            Requisite::Name(requisites.name),
+            Requisite::PersonalAcc(requisites.personal_acc),
+            Requisite::BankName(requisites.bank_name),
+            Requisite::BIC(requisites.bic),
+            Requisite::CorrespAcc(requisites.correstp_acc),
         ];
 
+        let requisites = std::mem::take(&mut self.payment.requisites);
+        self.payment.requisites = required_requisites.into_iter().chain(requisites).collect();
+
+        self.payment
+    }
+}
+
+impl Default for PaymentBuilder {
+    fn default() -> Self {
         Self {
-            header: PaymentHeader {
-                format_id: FORMAT_ID_BYTES,
-                version: VERSION_0001_BYTES,
-                encoding: PaymentEncoding::Utf8,
-                separator: splitter as u8,
+            payment: Payment {
+                header: PaymentHeader {
+                    format_id: FORMAT_ID_BYTES,
+                    version: VERSION_0001_BYTES,
+                    encoding: PaymentEncoding::Utf8,
+                    separator: b'|',
+                },
+                requisites: vec![],
             },
-            requisites,
         }
+    }
+}
+
+impl Payment {
+    pub fn builder() -> PaymentBuilder {
+        PaymentBuilder::default()
     }
 
     pub fn add_additional_requisite(&mut self, requisite: Requisite) {
-        assert!(matches!(requisite, Requisite::Name(_)));
-        assert!(matches!(requisite, Requisite::PersonalAcc(_)));
-        assert!(matches!(requisite, Requisite::BankName(_)));
-        assert!(matches!(requisite, Requisite::BIC(_)));
-        assert!(matches!(requisite, Requisite::CorrespAcc(_)));
+        assert!(!matches!(requisite, Requisite::Name(_)));
+        assert!(!matches!(requisite, Requisite::PersonalAcc(_)));
+        assert!(!matches!(requisite, Requisite::BankName(_)));
+        assert!(!matches!(requisite, Requisite::BIC(_)));
+        assert!(!matches!(requisite, Requisite::CorrespAcc(_)));
 
         self.requisites.push(requisite);
     }
@@ -51,11 +100,11 @@ impl Payment {
         requisites: impl IntoIterator<Item = Requisite>,
     ) {
         let requisites = requisites.into_iter().inspect(|requisite| {
-            assert!(matches!(requisite, Requisite::Name(_)));
-            assert!(matches!(requisite, Requisite::PersonalAcc(_)));
-            assert!(matches!(requisite, Requisite::BankName(_)));
-            assert!(matches!(requisite, Requisite::BIC(_)));
-            assert!(matches!(requisite, Requisite::CorrespAcc(_)));
+            assert!(!matches!(requisite, Requisite::Name(_)));
+            assert!(!matches!(requisite, Requisite::PersonalAcc(_)));
+            assert!(!matches!(requisite, Requisite::BankName(_)));
+            assert!(!matches!(requisite, Requisite::BIC(_)));
+            assert!(!matches!(requisite, Requisite::CorrespAcc(_)));
         });
 
         self.requisites.extend(requisites);
@@ -491,7 +540,7 @@ mod tests {
 
     #[test]
     fn encoding_test() {
-        let payment = Payment::new(RequiredRequisite {
+        let payment = Payment::builder().build(RequiredRequisite {
             name: "ООО «Три кита»".to_string(),
             personal_acc: "40702810138250123017".to_string(),
             bank_name: "ОАО \"БАНК\"".to_string(),
@@ -510,7 +559,7 @@ mod tests {
 
         let parsed_payment = Payment::from_bytes(raw);
 
-        let payment = Payment::new(RequiredRequisite {
+        let payment = Payment::builder().build(RequiredRequisite {
             name: "ООО «Три кита»".to_string(),
             personal_acc: "40702810138250123017".to_string(),
             bank_name: "ОАО \"БАНК\"".to_string(),
