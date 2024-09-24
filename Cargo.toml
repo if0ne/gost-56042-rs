@@ -1,0 +1,7 @@
+[package]
+name = "gost-56042"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+encoding = "0.2.33"
