@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Ошибка при парсинге заголовка.
-    CorruptedHeader,
+    CorruptedHeader(String),
 
     /// Ошибка при декодировании тела.
     DecodingError,
@@ -27,21 +27,50 @@ pub enum Error {
     UnknownTechCode(String),
 
     /// Неподдерживаемая версия.
-    UnsupportedVersion,
+    UnsupportedVersion { passed: [u8; 4], current: [u8; 4] },
 
     /// Неправильный Format ID.
-    WrongFormatId,
+    WrongFormatId([u8; 2]),
 
     /// Неправильное значение для пары-значения.
     WrongPair(String, String),
 
     /// Неправильный порядок обязательных реквизитов.
-    WrongRequiredRequisiteOrder,
+    WrongRequiredRequisiteOrder { passed: String, expected: String },
 }
 
 impl Display for Error {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::CorruptedHeader(err) => write!(f, "Ошибка при парсинге заголовка: \"{}\"", err),
+            Error::DecodingError => write!(f, "Ошибка при декодировании тела"),
+            Error::EncodingError => write!(f, "Ошибка при кодировании тела"),
+            Error::RequiredRequisiteNotPresented => {
+                write!(f, "Обязательные реквизиты не предоставлены")
+            }
+            Error::UnknownPair(key, val) => write!(f, "Неизвестный реквизит: {}={}", key, val),
+            Error::UnknownEncodingCode(code) => write!(f, "Неизвестный код кодировки {}", code),
+            Error::UnknownTechCode(code) => {
+                write!(f, "Неизвестный технический код платежа {}", code)
+            }
+            Error::UnsupportedVersion { passed, current } => write!(
+                f,
+                "Версия {} не поддерживается, текущая версия {}",
+                std::str::from_utf8(passed).unwrap(),
+                std::str::from_utf8(current).unwrap(),
+            ),
+            Error::WrongFormatId(format_id) => write!(
+                f,
+                "Неправильный Format ID {}{}",
+                format_id[0] as char, format_id[1] as char
+            ),
+            Error::WrongPair(key, val) => write!(f, "Неправильное значение пары {}={}", key, val),
+            Error::WrongRequiredRequisiteOrder { passed, expected } => write!(
+                f,
+                "Неправильный порядок обязательных реквизитов. Ожидалось {} встречено {}",
+                expected, passed
+            ),
+        }
     }
 }
 

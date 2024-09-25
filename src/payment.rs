@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Display, marker::PhantomData};
 
 use encoding::Encoding;
 
@@ -152,7 +152,7 @@ impl<T: CustomRequisites> Payment<T> {
         // Кодирование реквизитов
         for requisite in &self.requisites {
             buffer.push(self.header.separator);
-            buffer.extend(self.encode_requisite(&requisite)?);
+            buffer.extend(self.encode_requisite(requisite)?);
         }
 
         Ok(())
@@ -247,7 +247,10 @@ impl<T: CustomRequisites> PaymentParser<T> {
         let header = self.read_payment_header_bytes(&bytes)?;
 
         if header.encoding != PaymentEncoding::Utf8 {
-            return Err(super::Error::CorruptedHeader);
+            return Err(super::Error::CorruptedHeader(format!(
+                "Не верная кодировка, должна быть Utf-8, установлена {}",
+                header.encoding
+            )));
         }
 
         Ok(header)
@@ -255,18 +258,23 @@ impl<T: CustomRequisites> PaymentParser<T> {
 
     fn read_payment_header_bytes(&self, bytes: &[u8]) -> super::Result<PaymentHeader> {
         if bytes.len() < 8 {
-            return Err(super::Error::CorruptedHeader);
+            return Err(super::Error::CorruptedHeader(
+                "Не возможно сформировать заголовок, так как длина меньше 8".to_string(),
+            ));
         }
 
         let format_id = &bytes[0..2];
 
         if format_id != FORMAT_ID_BYTES {
-            return Err(super::Error::WrongFormatId);
+            return Err(super::Error::WrongFormatId([format_id[0], format_id[1]]));
         }
 
         let version = &bytes[2..6];
         if version != self.version_id {
-            return Err(super::Error::UnsupportedVersion);
+            return Err(super::Error::UnsupportedVersion {
+                passed: [version[0], version[1], version[2], version[3]],
+                current: self.version_id,
+            });
         }
 
         let encoding: PaymentEncoding = bytes[6].try_into()?;
@@ -312,24 +320,44 @@ impl<T: CustomRequisites> PaymentParser<T> {
     fn validate_required_requisites(&self, requisites: &[Requisite<T>]) -> super::Result<()> {
         let mut req = requisites.iter().take(5);
 
-        if !matches!(req.next(), Some(Requisite::Name(_))) {
-            return Err(super::Error::WrongRequiredRequisiteOrder);
+        let next = req.next();
+        if !matches!(next, Some(Requisite::Name(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder {
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
+                expected: "Name".to_string(),
+            });
         }
 
-        if !matches!(req.next(), Some(Requisite::PersonalAcc(_))) {
-            return Err(super::Error::WrongRequiredRequisiteOrder);
+        let next = req.next();
+        if !matches!(next, Some(Requisite::PersonalAcc(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder {
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
+                expected: "PersonalAcc".to_string(),
+            });
         }
 
-        if !matches!(req.next(), Some(Requisite::BankName(_))) {
-            return Err(super::Error::WrongRequiredRequisiteOrder);
+        let next = req.next();
+        if !matches!(next, Some(Requisite::BankName(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder {
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
+                expected: "BankName".to_string(),
+            });
         }
 
-        if !matches!(req.next(), Some(Requisite::BIC(_))) {
-            return Err(super::Error::WrongRequiredRequisiteOrder);
+        let next = req.next();
+        if !matches!(next, Some(Requisite::BIC(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder {
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
+                expected: "BIC".to_string(),
+            });
         }
 
-        if !matches!(req.next(), Some(Requisite::CorrespAcc(_))) {
-            return Err(super::Error::WrongRequiredRequisiteOrder);
+        let next = req.next();
+        if !matches!(next, Some(Requisite::CorrespAcc(_))) {
+            return Err(super::Error::WrongRequiredRequisiteOrder {
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
+                expected: "CorrespAcc".to_string(),
+            });
         }
 
         Ok(())
@@ -874,6 +902,16 @@ impl TryFrom<u8> for PaymentEncoding {
             b'2' => Ok(Self::Utf8),
             b'3' => Ok(Self::Koi8R),
             code => Err(super::Error::UnknownEncodingCode(code)),
+        }
+    }
+}
+
+impl Display for PaymentEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PaymentEncoding::Win1251 => write!(f, "Windows-1251"),
+            PaymentEncoding::Utf8 => write!(f, "Utf-8"),
+            PaymentEncoding::Koi8R => write!(f, "KOI8-R"),
         }
     }
 }
