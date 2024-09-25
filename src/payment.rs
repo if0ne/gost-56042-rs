@@ -1,22 +1,27 @@
+use std::marker::PhantomData;
+
 use encoding::Encoding;
 
-use crate::string_types::{ExactSizeString, MaxSizeString, StringExt};
+use super::{
+    string_types::{ExactSizeString, MaxSizeString, StringExt},
+    CustomRequisites, NoCustomRequisites,
+};
 
 const FORMAT_ID_BYTES: [u8; 2] = [b'S', b'T'];
 const VERSION_0001_BYTES: [u8; 4] = [b'0', b'0', b'0', b'1'];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Payment {
+pub struct Payment<T: CustomRequisites = NoCustomRequisites> {
     header: PaymentHeader,
-    requisites: Vec<Requisite>,
+    requisites: Vec<Requisite<T>>,
 }
 
 #[derive(Debug)]
-pub struct PaymentBuilder {
-    payment: Payment,
+pub struct PaymentBuilder<T: CustomRequisites = NoCustomRequisites> {
+    payment: Payment<T>,
 }
 
-impl PaymentBuilder {
+impl<T: CustomRequisites> PaymentBuilder<T> {
     pub fn with_version(mut self, version: [u8; 4]) -> Self {
         self.payment.header.version = version;
         self
@@ -36,7 +41,7 @@ impl PaymentBuilder {
 
     pub fn with_additional_requisites(
         mut self,
-        requisites: impl IntoIterator<Item = Requisite>,
+        requisites: impl IntoIterator<Item = Requisite<T>>,
     ) -> Self {
         let requisites = requisites.into_iter().inspect(|requisite| {
             assert!(!matches!(requisite, Requisite::Name(_)));
@@ -50,7 +55,7 @@ impl PaymentBuilder {
         self
     }
 
-    pub fn build(self) -> Payment {
+    pub fn build(self) -> Payment<T> {
         self.payment
     }
 }
@@ -121,17 +126,18 @@ impl Payment {
 }
 
 #[derive(Debug)]
-pub struct PaymentParser {
+pub struct PaymentParser<T: CustomRequisites = NoCustomRequisites> {
     version_id: [u8; 4],
+    _marker: PhantomData<T>,
 }
 
-impl PaymentParser {
+impl<T: CustomRequisites> PaymentParser<T> {
     pub fn with_version(mut self, version_id: [u8; 4]) -> Self {
         self.version_id = version_id;
         self
     }
 
-    pub fn from_str(&self, val: &str) -> super::Result<Payment> {
+    pub fn from_str(&self, val: &str) -> super::Result<Payment<T>> {
         let header = self.read_payment_header(val)?;
 
         let data = val[8..].to_string();
@@ -143,7 +149,7 @@ impl PaymentParser {
         Ok(Payment { header, requisites })
     }
 
-    pub fn from_bytes(&self, bytes: &[u8]) -> super::Result<Payment> {
+    pub fn from_bytes(&self, bytes: &[u8]) -> super::Result<Payment<T>> {
         let header = self.read_payment_header_bytes(bytes)?;
 
         let data = self.decode_payment_body(header.encoding, &bytes[8..])?;
@@ -156,7 +162,7 @@ impl PaymentParser {
     }
 }
 
-impl PaymentParser {
+impl<T: CustomRequisites> PaymentParser<T> {
     fn read_payment_header(&self, val: &str) -> super::Result<PaymentHeader> {
         let bytes = val.chars().take(8).map(|c| c as u8).collect::<Vec<_>>();
         let header = self.read_payment_header_bytes(&bytes)?;
@@ -215,7 +221,7 @@ impl PaymentParser {
         Ok(data)
     }
 
-    fn read_requisites(&self, data: &str, separator: char) -> super::Result<Vec<Requisite>> {
+    fn read_requisites(&self, data: &str, separator: char) -> super::Result<Vec<Requisite<T>>> {
         let kv = data.split(separator);
 
         kv.into_iter()
@@ -224,7 +230,7 @@ impl PaymentParser {
             .collect()
     }
 
-    fn validate_required_requisites(&self, requisites: &[Requisite]) -> super::Result<()> {
+    fn validate_required_requisites(&self, requisites: &[Requisite<T>]) -> super::Result<()> {
         let mut req = requisites.iter().take(5);
 
         if !matches!(req.next(), Some(Requisite::Name(_))) {
@@ -251,10 +257,11 @@ impl PaymentParser {
     }
 }
 
-impl Default for PaymentParser {
+impl<T: CustomRequisites> Default for PaymentParser<T> {
     fn default() -> Self {
         Self {
             version_id: VERSION_0001_BYTES,
+            _marker: PhantomData,
         }
     }
 }
@@ -277,7 +284,7 @@ pub struct RequiredRequisite {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Requisite {
+pub enum Requisite<T: CustomRequisites> {
     // Required
     Name(MaxSizeString<160>),
     PersonalAcc(ExactSizeString<20>),
@@ -332,10 +339,10 @@ pub enum Requisite {
     UIN(String),
     TechCode(TechCode),
 
-    Custom(String, String),
+    Custom(T),
 }
 
-impl Requisite {
+impl<T: CustomRequisites> Requisite<T> {
     pub fn key(&self) -> &str {
         match self {
             Requisite::Name(_) => "Name",
@@ -386,7 +393,7 @@ impl Requisite {
             Requisite::RegType(_) => "RegType",
             Requisite::UIN(_) => "UIN",
             Requisite::TechCode(_) => "TechCode",
-            Requisite::Custom(k, _) => k,
+            Requisite::Custom(v) => v.key(),
         }
     }
 
@@ -440,12 +447,12 @@ impl Requisite {
             Requisite::RegType(v) => v,
             Requisite::UIN(v) => v,
             Requisite::TechCode(tech_code) => tech_code.as_str(),
-            Requisite::Custom(_, v) => v,
+            Requisite::Custom(v) => v.value(),
         }
     }
 }
 
-impl TryFrom<(&str, &str)> for Requisite {
+impl<T: CustomRequisites> TryFrom<(&str, &str)> for Requisite<T> {
     type Error = super::Error;
 
     fn try_from((key, val): (&str, &str)) -> super::Result<Self> {
@@ -552,7 +559,7 @@ impl TryFrom<(&str, &str)> for Requisite {
             "RegType" => Requisite::RegType(val.to_string()),
             "UIN" => Requisite::UIN(val.to_string()),
             "TechCode" => Requisite::TechCode(TechCode::from_str(val)?),
-            _ => Requisite::Custom(key.to_string(), val.to_string()),
+            _ => Requisite::Custom((key, val).try_into()?),
         };
 
         Ok(requisite)

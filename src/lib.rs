@@ -1,6 +1,9 @@
+mod custom;
 mod error;
+mod payment;
 mod string_types;
-mod structs;
 
+pub use custom::*;
 pub use error::{Error, Result};
-pub use structs::*;
+pub use payment::*;
+pub use string_types::*;
