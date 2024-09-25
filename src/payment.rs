@@ -566,63 +566,93 @@ impl<T: CustomRequisites> TryFrom<(&str, &str)> for Requisite<T> {
     }
 }
 
+/// {начения технического кода платежа
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TechCode {
-    _01,
-    _02,
-    _03,
-    _04,
-    _05,
-    _06,
-    _07,
-    _08,
-    _09,
-    _10,
-    _11,
-    _12,
-    _13,
-    _14,
-    _15,
+    /// Мобильная связь, стационарный телефон
+    Mobile,
+
+    /// Коммунальные услуги, ЖКХ
+    HousingAndUtilites,
+
+    /// ГИБДД, налоги, пошлины, бюджетные платежи
+    Taxes,
+
+    /// Охранные услуги
+    SecurityServices,
+
+    /// Услуги, оказываемые УФМС
+    FMS,
+
+    // ПФР
+    PFR,
+
+    /// Погашение кредитов
+    LoanRepayments,
+
+    /// Образовательные учреждения
+    EducationalInstitutions,
+
+    /// Интернет и ТВ
+    InternetTV,
+
+    /// Электронные деньги
+    Emoney,
+
+    /// Отдых и путешествия
+    Vacation,
+
+    /// Инвестиции и страхование
+    InvestmentInsurance,
+
+    /// Спорт и здоровье
+    SportHealth,
+
+    /// Благотворительные и общественные организации
+    Charity,
+
+    ///  Прочие услуги
+    Other,
 }
 
 impl TechCode {
     fn as_str(&self) -> &str {
         match self {
-            TechCode::_01 => "01",
-            TechCode::_02 => "02",
-            TechCode::_03 => "03",
-            TechCode::_04 => "04",
-            TechCode::_05 => "05",
-            TechCode::_06 => "06",
-            TechCode::_07 => "07",
-            TechCode::_08 => "08",
-            TechCode::_09 => "09",
-            TechCode::_10 => "10",
-            TechCode::_11 => "11",
-            TechCode::_12 => "12",
-            TechCode::_13 => "13",
-            TechCode::_14 => "14",
-            TechCode::_15 => "15",
+            TechCode::Mobile => "01",
+            TechCode::HousingAndUtilites => "02",
+            TechCode::Taxes => "03",
+            TechCode::SecurityServices => "04",
+            TechCode::FMS => "05",
+            TechCode::PFR => "06",
+            TechCode::LoanRepayments => "07",
+            TechCode::EducationalInstitutions => "08",
+            TechCode::InternetTV => "09",
+            TechCode::Emoney => "10",
+            TechCode::Vacation => "11",
+            TechCode::InvestmentInsurance => "12",
+            TechCode::SportHealth => "13",
+            TechCode::Charity => "14",
+            TechCode::Other => "15",
         }
     }
 
     fn from_str(val: &str) -> super::Result<TechCode> {
         match val {
-            "01" => Ok(TechCode::_01),
-            "02" => Ok(TechCode::_02),
-            "03" => Ok(TechCode::_03),
-            "04" => Ok(TechCode::_04),
-            "05" => Ok(TechCode::_05),
-            "06" => Ok(TechCode::_06),
-            "07" => Ok(TechCode::_07),
-            "08" => Ok(TechCode::_08),
-            "09" => Ok(TechCode::_09),
-            "10" => Ok(TechCode::_10),
-            "11" => Ok(TechCode::_11),
-            "12" => Ok(TechCode::_12),
-            "13" => Ok(TechCode::_13),
-            "14" => Ok(TechCode::_14),
-            "15" => Ok(TechCode::_15),
+            "01" => Ok(TechCode::Mobile),
+            "02" => Ok(TechCode::HousingAndUtilites),
+            "03" => Ok(TechCode::Taxes),
+            "04" => Ok(TechCode::SecurityServices),
+            "05" => Ok(TechCode::FMS),
+            "06" => Ok(TechCode::PFR),
+            "07" => Ok(TechCode::LoanRepayments),
+            "08" => Ok(TechCode::EducationalInstitutions),
+            "09" => Ok(TechCode::InternetTV),
+            "10" => Ok(TechCode::Emoney),
+            "11" => Ok(TechCode::Vacation),
+            "12" => Ok(TechCode::InvestmentInsurance),
+            "13" => Ok(TechCode::SportHealth),
+            "14" => Ok(TechCode::Charity),
+            "15" => Ok(TechCode::Other),
             _ => Err(super::Error::WrongTechCode(val.to_string())),
         }
     }
