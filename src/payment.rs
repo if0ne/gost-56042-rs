@@ -105,32 +105,53 @@ impl Payment {
         PaymentParser::default()
     }
 
-    /// Преобразования структуры в строку согласно ГОСТ-56042.
-    pub fn to_gost_format(&self) -> String {
-        let mut buffer = String::with_capacity(308);
-        self.write_to(&mut buffer);
-        buffer
+    /// Преобразования структуры в массив байтов согласно ГОСТ-56042.
+    pub fn to_bytes(&self) -> super::Result<Vec<u8>> {
+        let mut buffer = Vec::with_capacity(308);
+        self.write_to(&mut buffer)?;
+        Ok(buffer)
     }
 
-    /// Заполнение буфера строкой с информацией о платеже в ГОСТ-56042.
-    pub fn write_to(&self, buffer: &mut String) {
+    /// Заполнение буфера с информацией о платеже согласно ГОСТ-56042.
+    pub fn write_to(&self, buffer: &mut Vec<u8>) -> super::Result<()> {
         // Кодирование заголовка
-        buffer.push(self.header.format_id[0] as char);
-        buffer.push(self.header.format_id[1] as char);
+        buffer.push(self.header.format_id[0]);
+        buffer.push(self.header.format_id[1]);
 
-        buffer.push(self.header.version[0] as char);
-        buffer.push(self.header.version[1] as char);
-        buffer.push(self.header.version[2] as char);
-        buffer.push(self.header.version[3] as char);
+        buffer.push(self.header.version[0]);
+        buffer.push(self.header.version[1]);
+        buffer.push(self.header.version[2]);
+        buffer.push(self.header.version[3]);
 
-        buffer.push(self.header.encoding.char());
+        buffer.push(self.header.encoding as u8);
 
         // Кодирование реквизитов
         for requisite in &self.requisites {
-            buffer.push(self.header.separator as char);
-            buffer.push_str(requisite.key());
-            buffer.push('=');
-            buffer.push_str(requisite.value());
+            buffer.push(self.header.separator);
+            buffer.extend(self.encode_requisite(&requisite)?);
+        }
+
+        Ok(())
+    }
+
+    /// Преобразования структуры в строку согласно ГОСТ-56042.
+    pub fn to_utf8_lossy(&self) -> super::Result<String> {
+        let bytes = self.to_bytes()?;
+        Ok(String::from_utf8_lossy(&bytes).to_string())
+    }
+}
+
+impl<T: CustomRequisites> Payment<T> {
+    fn encode_requisite(&self, req: &Requisite<T>) -> super::Result<Vec<u8>> {
+        let pair = format!("{}={}", req.key(), req.value());
+        match self.header.encoding {
+            PaymentEncoding::Win1251 => encoding::all::WINDOWS_1251
+                .encode(&pair, encoding::EncoderTrap::Strict)
+                .map_err(|_| super::Error::EncodingError),
+            PaymentEncoding::Utf8 => Ok(pair.into_bytes()),
+            PaymentEncoding::Koi8R => encoding::all::KOI8_R
+                .encode(&pair, encoding::EncoderTrap::Strict)
+                .map_err(|_| super::Error::EncodingError),
         }
     }
 }
@@ -802,16 +823,6 @@ pub enum PaymentEncoding {
     Koi8R = b'3',
 }
 
-impl PaymentEncoding {
-    fn char(&self) -> char {
-        match self {
-            PaymentEncoding::Win1251 => '1',
-            PaymentEncoding::Utf8 => '2',
-            PaymentEncoding::Koi8R => '3',
-        }
-    }
-}
-
 impl TryFrom<u8> for PaymentEncoding {
     type Error = super::Error;
 
@@ -833,6 +844,8 @@ mod tests {
 
     #[test]
     fn encoding_test() {
+        let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225";
+
         let payment = Payment::builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
@@ -842,9 +855,10 @@ mod tests {
         })
         .build();
 
-        let payment = payment.to_gost_format();
+        let payment = payment.to_utf8_lossy();
+        let payment = payment.as_ref().map(|s| s.as_str());
 
-        assert_eq!(payment, "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225")
+        assert_eq!(payment, Ok(raw))
     }
 
     #[test]
@@ -932,6 +946,9 @@ mod tests {
         ])
         .build();
 
-        assert_eq!(payment.to_gost_format(), raw);
+        let payment = payment.to_utf8_lossy();
+        let payment = payment.as_ref().map(|s| s.as_str());
+
+        assert_eq!(payment, Ok(raw));
     }
 }

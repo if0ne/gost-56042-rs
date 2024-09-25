@@ -11,6 +11,9 @@ pub enum Error {
     /// Ошибка при декодировании тела.
     DecodingError,
 
+    /// Ошибка при кодировании тела.
+    EncodingError,
+
     /// Обязательные реквизиты не предоставлены.
     RequiredRequisiteNotPresented,
 
