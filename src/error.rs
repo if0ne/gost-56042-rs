@@ -2,18 +2,38 @@ use std::fmt::{self, Display};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Ошибки при создании платежа и парсинге.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
+    /// Ошибка при парсинге заголовка.
     CorruptedHeader,
-    EncodingError,
+
+    /// Ошибка при декодировании тела.
+    DecodingError,
+
+    /// Обязательные реквизиты не предоставлены.
     RequiredRequisiteNotPresented,
-    UnsupportedVersion,
+
+    /// Неизвестная пара реквизитов.
     UnknownPair(String, String),
-    WrongEncodingCode(u8),
+
+    /// Неизвестный код для кодировки.
+    UnknownEncodingCode(u8),
+
+    /// Неизвестный технический код платежа.
+    UnknownTechCode(String),
+
+    /// Неподдерживаемая версия.
+    UnsupportedVersion,
+
+    /// Неправильный Format ID.
     WrongFormatId,
+
+    /// Неправильное значение для пары-значения.
     WrongPair(String, String),
+
+    /// Неправильный порядок обязательных реквизитов.
     WrongRequiredRequisiteOrder,
-    WrongTechCode(String),
 }
 
 impl Display for Error {

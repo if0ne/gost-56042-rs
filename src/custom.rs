@@ -1,5 +1,11 @@
+/// Трейт необходим для расширения списка реквизитов.
+///
+/// Лучше всего реализовывать на `enum` типах.
 pub trait CustomRequisites: for<'a> TryFrom<(&'a str, &'a str), Error = super::Error> {
+    /// Ключ.
     fn key(&self) -> &str;
+
+    /// Значение.
     fn value(&self) -> &str;
 }
 

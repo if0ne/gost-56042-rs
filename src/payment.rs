@@ -10,6 +10,7 @@ use super::{
 const FORMAT_ID_BYTES: [u8; 2] = [b'S', b'T'];
 const VERSION_0001_BYTES: [u8; 4] = [b'0', b'0', b'0', b'1'];
 
+/// Информация о платеже.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Payment<T: CustomRequisites = NoCustomRequisites> {
     header: PaymentHeader,
@@ -22,16 +23,19 @@ pub struct PaymentBuilder<T: CustomRequisites = NoCustomRequisites> {
 }
 
 impl<T: CustomRequisites> PaymentBuilder<T> {
+    /// Установка версии.
     pub fn with_version(mut self, version: [u8; 4]) -> Self {
         self.payment.header.version = version;
         self
     }
 
+    /// Установка кодировки.
     pub fn with_encdoing(mut self, encdoing: PaymentEncoding) -> Self {
         self.payment.header.encoding = encdoing;
         self
     }
 
+    /// Установка разделителя.
     pub fn with_separator(mut self, separator: char) -> Self {
         assert!(separator.is_ascii());
 
@@ -39,6 +43,7 @@ impl<T: CustomRequisites> PaymentBuilder<T> {
         self
     }
 
+    /// Добавление дополнительных реквизитов.
     pub fn with_additional_requisites(
         mut self,
         requisites: impl IntoIterator<Item = Requisite<T>>,
@@ -55,6 +60,7 @@ impl<T: CustomRequisites> PaymentBuilder<T> {
         self
     }
 
+    /// Получение структуры с информацией о платеже.
     pub fn build(self) -> Payment<T> {
         self.payment
     }
@@ -77,6 +83,7 @@ impl Default for PaymentBuilder {
 }
 
 impl Payment {
+    /// Строитель модели платежей.
     pub fn builder(requisites: RequiredRequisite) -> PaymentBuilder {
         let mut builder = PaymentBuilder::default();
 
@@ -93,18 +100,21 @@ impl Payment {
         builder
     }
 
+    /// Парсер.
     pub fn parser() -> PaymentParser {
         PaymentParser::default()
     }
 
+    /// Преобразования структуры в строку согласно ГОСТ-56042.
     pub fn to_gost_format(&self) -> String {
         let mut buffer = String::with_capacity(308);
         self.write_to(&mut buffer);
         buffer
     }
 
+    /// Заполнение буфера строкой с информацией о платеже в ГОСТ-56042.
     pub fn write_to(&self, buffer: &mut String) {
-        // Header encoding
+        // Кодирование заголовка
         buffer.push(self.header.format_id[0] as char);
         buffer.push(self.header.format_id[1] as char);
 
@@ -115,7 +125,7 @@ impl Payment {
 
         buffer.push(self.header.encoding.char());
 
-        // Requisites encoding
+        // Кодирование реквизитов
         for requisite in &self.requisites {
             buffer.push(self.header.separator as char);
             buffer.push_str(requisite.key());
@@ -125,6 +135,7 @@ impl Payment {
     }
 }
 
+/// Парсер из строки в структуру с информацией о платеже.
 #[derive(Debug)]
 pub struct PaymentParser<T: CustomRequisites = NoCustomRequisites> {
     version_id: [u8; 4],
@@ -132,11 +143,15 @@ pub struct PaymentParser<T: CustomRequisites = NoCustomRequisites> {
 }
 
 impl<T: CustomRequisites> PaymentParser<T> {
+    /// Установка версии.
     pub fn with_version(mut self, version_id: [u8; 4]) -> Self {
         self.version_id = version_id;
         self
     }
 
+    /// Преобразовать из строки.
+    ///
+    /// Предполагается, что тело находится в Utf-8 формате.
     pub fn from_str(&self, val: &str) -> super::Result<Payment<T>> {
         let header = self.read_payment_header(val)?;
 
@@ -149,6 +164,7 @@ impl<T: CustomRequisites> PaymentParser<T> {
         Ok(Payment { header, requisites })
     }
 
+    /// Преобразование из байтов.
     pub fn from_bytes(&self, bytes: &[u8]) -> super::Result<Payment<T>> {
         let header = self.read_payment_header_bytes(bytes)?;
 
@@ -209,13 +225,13 @@ impl<T: CustomRequisites> PaymentParser<T> {
         let data = match encoding {
             PaymentEncoding::Win1251 => encoding::all::WINDOWS_1251
                 .decode(bytes, encoding::DecoderTrap::Strict)
-                .map_err(|_| super::Error::EncodingError)?,
+                .map_err(|_| super::Error::DecodingError)?,
             PaymentEncoding::Utf8 => {
-                String::from_utf8(bytes.to_vec()).map_err(|_| super::Error::EncodingError)?
+                String::from_utf8(bytes.to_vec()).map_err(|_| super::Error::DecodingError)?
             }
             PaymentEncoding::Koi8R => encoding::all::KOI8_R
                 .decode(bytes, encoding::DecoderTrap::Strict)
-                .map_err(|_| super::Error::EncodingError)?,
+                .map_err(|_| super::Error::DecodingError)?,
         };
 
         Ok(data)
@@ -266,79 +282,189 @@ impl<T: CustomRequisites> Default for PaymentParser<T> {
     }
 }
 
+/// Заголовок платежа.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PaymentHeader {
+    /// Идентификатор формата
     format_id: [u8; 2],
+
+    /// Версия стандарта
     version: [u8; 4],
+
+    /// Признак набора кодированных знаков
     encoding: PaymentEncoding,
+
+    /// Разделитель
     separator: u8,
 }
 
+/// Требуемые реквизиты.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequiredRequisite {
-    name: MaxSizeString<160>,
-    personal_acc: ExactSizeString<20>,
-    bank_name: MaxSizeString<45>,
-    bic: ExactSizeString<9>,
-    correstp_acc: MaxSizeString<20>,
+    pub name: MaxSizeString<160>,
+    pub personal_acc: ExactSizeString<20>,
+    pub bank_name: MaxSizeString<45>,
+    pub bic: ExactSizeString<9>,
+    pub correstp_acc: MaxSizeString<20>,
 }
 
+/// Варианты реквизитов.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Requisite<T: CustomRequisites> {
-    // Required
+    // Обязательные
+    /// Наименование получателя платежа
     Name(MaxSizeString<160>),
+
+    /// Номер счета получателя платежа
     PersonalAcc(ExactSizeString<20>),
+
+    /// Наименование банка получателя платежа
     BankName(MaxSizeString<45>),
+
+    /// БИК
     BIC(ExactSizeString<9>),
+
+    /// Номер кор./сч. банка получателя платежа
     CorrespAcc(MaxSizeString<20>),
 
-    // Additional
+    // Дополнительные
+    /// Сумма платежа, в копейках
     Sum(MaxSizeString<18>),
+
+    /// Наименование платежа (назначение)
     Purpose(MaxSizeString<210>),
+
+    /// ИНН получателя платежа
     PayeeINN(MaxSizeString<12>),
+
+    /// ИНН плательщика
     PayerINN(MaxSizeString<12>),
+
+    /// Статус составителя платежного документа
     DrawerStatus(MaxSizeString<2>),
+
+    /// КПП получателя платежа
     KPP(MaxSizeString<9>),
+
+    /// КБК
     CBC(MaxSizeString<20>),
+
+    /// Общероссийский классификатор территорий муниципальных образований (ОКТМО)
     OKTMO(MaxSizeString<11>),
+
+    /// Основание налогового платежа
     PaytReason(MaxSizeString<2>),
+
+    /// Налоговый период
     TaxPeriod(MaxSizeString<10>),
+
+    /// Номер документа
     DocNo(MaxSizeString<15>),
+
+    ///  Дата документа
     DocDate(MaxSizeString<10>),
+
+    ///  Тип платежа
     TaxPayKind(MaxSizeString<2>),
 
-    // Other
+    // Другие
+    /// Фамилия плательщика
     LastName(String),
+
+    /// Имя плательщика
     FirstName(String),
+
+    /// Отчество плательщика
     MiddleName(String),
+
+    /// Адрес плательщика
     PayerAddress(String),
+
+    /// Лицевой счет бюджетного получателя
     PersonalAccount(String),
+
+    /// Индекс платежного документа
     DocIdx(String),
+
+    /// № лицевого счета в системе персонифицированного учета в ПФР - СНИЛС
     PensAcc(String),
+
+    /// Номер договора
+    Contract(String),
+
+    /// Номер лицевого счета плательщика в организации (в системе учета ПУ)
+    PersAcc(String),
+
+    /// Номер квартиры
     Flat(String),
+
+    /// Номер телефона
     Phone(String),
+
+    /// Вид ДУЛ плательщика
     PayerIdType(String),
+
+    /// Номер ДУЛ плательщика
     PayerIdNum(String),
+
+    /// Ф.И.О. ребенка/учащегося
     ChildFio(String),
+
+    /// Дата рождения
     BirthDate(String),
+
+    /// Срок платежа/дата выставления счета
     PaymTerm(String),
+
+    /// Период оплаты
     PaymPeriod(String),
+
+    /// Вид платежа
     Category(String),
+
+    /// Код услуги/название прибора учета
     ServiceName(String),
+
+    /// Номер прибора учета
     CounterId(String),
+
+    /// Показание прибора учета
     CounterVal(String),
+
+    /// Номер извещения, начисления, счета
     QuittId(String),
+
+    /// Дата извещения/начисления/счета/постановления (для ГИБДД)
     QuittDate(String),
+
+    /// Номер учреждения (образовательного, медицинского)
     InstNum(String),
+
+    /// Номер группы детсада/класса школы
     ClassNum(String),
+
+    /// ФИО преподавателя, специалиста, оказывающего услугу
     SpecFio(String),
+
+    /// Сумма страховки/дополнительной услуги/Сумма пени (в копейках)
     AddAmount(String),
+
+    /// Номер постановления (для ГИБДД)
     RuleId(String),
+
+    /// Номер исполнительного производства
     ExecId(String),
+
+    /// Код вида платежа (например, для платежей в адрес Росреестра)
     RegType(String),
+
+    /// Уникальный идентификатор начисления
     UIN(String),
+
+    /// Технический код, рекомендуемый для заполнения поставщиком услуг. Может использоваться принимающей организацией для вызова соответствующей обрабатывающей ИТ-системы.
     TechCode(TechCode),
 
+    /// Собственный вариант реквизита
     Custom(T),
 }
 
@@ -370,6 +496,8 @@ impl<T: CustomRequisites> Requisite<T> {
             Requisite::PersonalAccount(_) => "PersonalAccount",
             Requisite::DocIdx(_) => "DocIdx",
             Requisite::PensAcc(_) => "PensAcc",
+            Requisite::Contract(_) => "Contract",
+            Requisite::PersAcc(_) => "PersAcc",
             Requisite::Flat(_) => "Flat",
             Requisite::Phone(_) => "Phone",
             Requisite::PayerIdType(_) => "PayerIdType",
@@ -424,6 +552,8 @@ impl<T: CustomRequisites> Requisite<T> {
             Requisite::PersonalAccount(v) => v,
             Requisite::DocIdx(v) => v,
             Requisite::PensAcc(v) => v,
+            Requisite::Contract(v) => v,
+            Requisite::PersAcc(v) => v,
             Requisite::Flat(v) => v,
             Requisite::Phone(v) => v,
             Requisite::PayerIdType(v) => v,
@@ -566,7 +696,7 @@ impl<T: CustomRequisites> TryFrom<(&str, &str)> for Requisite<T> {
     }
 }
 
-/// {начения технического кода платежа
+/// Значения технического кода платежа
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TechCode {
     /// Мобильная связь, стационарный телефон
@@ -653,16 +783,22 @@ impl TechCode {
             "13" => Ok(TechCode::SportHealth),
             "14" => Ok(TechCode::Charity),
             "15" => Ok(TechCode::Other),
-            _ => Err(super::Error::WrongTechCode(val.to_string())),
+            _ => Err(super::Error::UnknownTechCode(val.to_string())),
         }
     }
 }
 
+/// Признак набора кодированных знаков.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PaymentEncoding {
+    /// Windows-1251
     Win1251 = b'1',
+
+    /// Utf-8
     Utf8 = b'2',
+
+    /// КОИ8-R
     Koi8R = b'3',
 }
 
@@ -684,7 +820,7 @@ impl TryFrom<u8> for PaymentEncoding {
             b'1' => Ok(Self::Win1251),
             b'2' => Ok(Self::Utf8),
             b'3' => Ok(Self::Koi8R),
-            code => Err(super::Error::WrongEncodingCode(code)),
+            code => Err(super::Error::UnknownEncodingCode(code)),
         }
     }
 }
