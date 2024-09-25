@@ -66,7 +66,7 @@ impl<T: CustomRequisites> PaymentBuilder<T> {
     }
 }
 
-impl Default for PaymentBuilder {
+impl<T: CustomRequisites> Default for PaymentBuilder<T> {
     fn default() -> Self {
         Self {
             payment: Payment {
@@ -102,6 +102,30 @@ impl Payment {
 
     /// Парсер.
     pub fn parser() -> PaymentParser {
+        PaymentParser::default()
+    }
+}
+
+impl<T: CustomRequisites> Payment<T> {
+    /// Строитель модели платежей с пользовательскими реквизитами.
+    pub fn custom_builder(requisites: RequiredRequisite) -> PaymentBuilder<T> {
+        let mut builder = PaymentBuilder::<T>::default();
+
+        let required_requisites = vec![
+            Requisite::Name(requisites.name),
+            Requisite::PersonalAcc(requisites.personal_acc),
+            Requisite::BankName(requisites.bank_name),
+            Requisite::BIC(requisites.bic),
+            Requisite::CorrespAcc(requisites.correstp_acc),
+        ];
+
+        builder.payment.requisites = required_requisites;
+
+        builder
+    }
+
+    /// Парсер с пользовательскими реквизитами.
+    pub fn custom_parser() -> PaymentParser<T> {
         PaymentParser::default()
     }
 
@@ -146,6 +170,16 @@ impl Payment {
             .iter()
             .find(|req| req.key() == key)
             .map(|req| req.value())
+    }
+
+    /// Получение заголовка
+    pub fn header(&self) -> &PaymentHeader {
+        &self.header
+    }
+
+    /// Получение реквизитов
+    pub fn requisites(&self) -> impl Iterator<Item = &Requisite<T>> {
+        self.requisites.iter()
     }
 }
 
@@ -846,7 +880,7 @@ impl TryFrom<u8> for PaymentEncoding {
 
 #[cfg(test)]
 mod tests {
-    use crate::{string_types::StringExt, Requisite};
+    use crate::{string_types::StringExt, CustomRequisites, Error, Requisite};
 
     use super::{Payment, RequiredRequisite};
 
@@ -875,7 +909,7 @@ mod tests {
 
         let parsed_payment = Payment::parser().from_bytes(raw);
 
-        let payment = Payment::builder(RequiredRequisite {
+        let payment = Payment::custom_builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
@@ -893,7 +927,7 @@ mod tests {
 
         let parsed_payment = Payment::parser().from_str(raw);
 
-        let payment = Payment::builder(RequiredRequisite {
+        let payment = Payment::custom_builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
@@ -911,7 +945,7 @@ mod tests {
 
         let parsed_payment = Payment::parser().from_str(raw);
 
-        let payment = Payment::builder(RequiredRequisite {
+        let payment = Payment::custom_builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
@@ -958,5 +992,57 @@ mod tests {
         let payment = payment.as_ref().map(|s| s.as_str());
 
         assert_eq!(payment, Ok(raw));
+    }
+
+    #[test]
+    fn custom_requisit_test() {
+        enum MyReq {
+            Foo,
+            Bar,
+        }
+
+        impl TryFrom<(&str, &str)> for MyReq {
+            type Error = Error;
+
+            fn try_from(_: (&str, &str)) -> Result<Self, Self::Error> {
+                Ok(Self::Foo)
+            }
+        }
+
+        impl CustomRequisites for MyReq {
+            fn key(&self) -> &str {
+                match self {
+                    MyReq::Foo => "Foo",
+                    MyReq::Bar => "Bar",
+                }
+            }
+
+            fn value(&self) -> &str {
+                match self {
+                    MyReq::Foo => "Foo",
+                    MyReq::Bar => "Bar",
+                }
+            }
+        }
+
+        let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225|Foo=Foo|Bar=Bar";
+
+        let payment = Payment::custom_builder(RequiredRequisite {
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
+        })
+        .with_additional_requisites([Requisite::Custom(MyReq::Foo), Requisite::Custom(MyReq::Bar)])
+        .build();
+
+        assert_eq!(payment.get("Foo"), Some("Foo"));
+        assert_eq!(payment.get("Bar"), Some("Bar"));
+
+        let payment = payment.to_utf8_lossy();
+        let payment = payment.as_ref().map(|s| s.as_str());
+
+        assert_eq!(payment, Ok(raw))
     }
 }
