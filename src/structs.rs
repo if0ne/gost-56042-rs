@@ -50,18 +50,7 @@ impl PaymentBuilder {
         self
     }
 
-    pub fn build(mut self, requisites: RequiredRequisite) -> Payment {
-        let required_requisites = vec![
-            Requisite::Name(requisites.name),
-            Requisite::PersonalAcc(requisites.personal_acc),
-            Requisite::BankName(requisites.bank_name),
-            Requisite::BIC(requisites.bic),
-            Requisite::CorrespAcc(requisites.correstp_acc),
-        ];
-
-        let requisites = std::mem::take(&mut self.payment.requisites);
-        self.payment.requisites = required_requisites.into_iter().chain(requisites).collect();
-
+    pub fn build(self) -> Payment {
         self.payment
     }
 }
@@ -83,8 +72,20 @@ impl Default for PaymentBuilder {
 }
 
 impl Payment {
-    pub fn builder() -> PaymentBuilder {
-        PaymentBuilder::default()
+    pub fn builder(requisites: RequiredRequisite) -> PaymentBuilder {
+        let mut builder = PaymentBuilder::default();
+
+        let required_requisites = vec![
+            Requisite::Name(requisites.name),
+            Requisite::PersonalAcc(requisites.personal_acc),
+            Requisite::BankName(requisites.bank_name),
+            Requisite::BIC(requisites.bic),
+            Requisite::CorrespAcc(requisites.correstp_acc),
+        ];
+
+        builder.payment.requisites = required_requisites;
+
+        builder
     }
 
     pub fn parser() -> PaymentParser {
@@ -659,13 +660,14 @@ mod tests {
 
     #[test]
     fn encoding_test() {
-        let payment = Payment::builder().build(RequiredRequisite {
+        let payment = Payment::builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
             bic: "044525225".to_exact_size().unwrap(),
             correstp_acc: "30101810400000000225".to_max_size().unwrap(),
-        });
+        })
+        .build();
 
         let payment = payment.to_gost_format();
 
@@ -678,13 +680,14 @@ mod tests {
 
         let parsed_payment = Payment::parser().from_bytes(raw);
 
-        let payment = Payment::builder().build(RequiredRequisite {
+        let payment = Payment::builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
             bic: "044525225".to_exact_size().unwrap(),
             correstp_acc: "30101810400000000225".to_max_size().unwrap(),
-        });
+        })
+        .build();
 
         assert_eq!(parsed_payment, Ok(payment));
     }
@@ -695,13 +698,14 @@ mod tests {
 
         let parsed_payment = Payment::parser().from_str(raw);
 
-        let payment = Payment::builder().build(RequiredRequisite {
+        let payment = Payment::builder(RequiredRequisite {
             name: "ООО «Три кита»".to_max_size().unwrap(),
             personal_acc: "40702810138250123017".to_exact_size().unwrap(),
             bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
             bic: "044525225".to_exact_size().unwrap(),
             correstp_acc: "30101810400000000225".to_max_size().unwrap(),
-        });
+        })
+        .build();
 
         assert_eq!(parsed_payment, Ok(payment));
     }
