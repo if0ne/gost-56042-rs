@@ -691,7 +691,7 @@ impl TryFrom<u8> for PaymentEncoding {
 
 #[cfg(test)]
 mod tests {
-    use crate::string_types::StringExt;
+    use crate::{string_types::StringExt, Requisite};
 
     use super::{Payment, RequiredRequisite};
 
@@ -745,5 +745,57 @@ mod tests {
         .build();
 
         assert_eq!(parsed_payment, Ok(payment));
+    }
+
+    #[test]
+    fn decoding_example_test() {
+        let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225|PayeeINN=6200098765|LastName=Иванов|FirstName=Иван|MiddleName=Иванович|Purpose=Оплата членского взноса|PayerAddress=г.Рязань ул.Ленина д.10 кв.15|Sum=100000";
+
+        let parsed_payment = Payment::parser().from_str(raw);
+
+        let payment = Payment::builder(RequiredRequisite {
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
+        })
+        .with_additional_requisites([
+            Requisite::PayeeINN("6200098765".to_max_size().unwrap()),
+            Requisite::LastName("Иванов".to_string()),
+            Requisite::FirstName("Иван".to_string()),
+            Requisite::MiddleName("Иванович".to_string()),
+            Requisite::Purpose("Оплата членского взноса".to_max_size().unwrap()),
+            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".to_string()),
+            Requisite::Sum("100000".to_max_size().unwrap()),
+        ])
+        .build();
+
+        assert_eq!(parsed_payment, Ok(payment));
+    }
+
+    #[test]
+    fn encoding_example_test() {
+        let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225|PayeeINN=6200098765|LastName=Иванов|FirstName=Иван|MiddleName=Иванович|Purpose=Оплата членского взноса|PayerAddress=г.Рязань ул.Ленина д.10 кв.15|Sum=100000";
+
+        let payment = Payment::builder(RequiredRequisite {
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
+        })
+        .with_additional_requisites([
+            Requisite::PayeeINN("6200098765".to_max_size().unwrap()),
+            Requisite::LastName("Иванов".to_string()),
+            Requisite::FirstName("Иван".to_string()),
+            Requisite::MiddleName("Иванович".to_string()),
+            Requisite::Purpose("Оплата членского взноса".to_max_size().unwrap()),
+            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".to_string()),
+            Requisite::Sum("100000".to_max_size().unwrap()),
+        ])
+        .build();
+
+        assert_eq!(payment.to_gost_format(), raw);
     }
 }
