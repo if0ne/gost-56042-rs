@@ -139,6 +139,14 @@ impl Payment {
         let bytes = self.to_bytes()?;
         Ok(String::from_utf8_lossy(&bytes).to_string())
     }
+
+    /// Получить значение по ключу.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.requisites
+            .iter()
+            .find(|req| req.key() == key)
+            .map(|req| req.value())
+    }
 }
 
 impl<T: CustomRequisites> Payment<T> {
