@@ -1,5 +1,7 @@
 use encoding::Encoding;
 
+use crate::string_types::{ExactSizeString, MaxSizeString, StringExt};
+
 const FORMAT_ID_BYTES: [u8; 2] = [b'S', b'T'];
 const VERSION_0001_BYTES: [u8; 4] = [b'0', b'0', b'0', b'1'];
 
@@ -108,7 +110,6 @@ impl Payment {
         buffer.push(self.header.encoding.char());
 
         // Requisites encoding
-
         for requisite in &self.requisites {
             buffer.push(self.header.separator as char);
             buffer.push_str(requisite.key());
@@ -267,36 +268,36 @@ pub struct PaymentHeader {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequiredRequisite {
-    name: String,
-    personal_acc: String,
-    bank_name: String,
-    bic: String,
-    correstp_acc: String,
+    name: MaxSizeString<160>,
+    personal_acc: ExactSizeString<20>,
+    bank_name: MaxSizeString<45>,
+    bic: ExactSizeString<9>,
+    correstp_acc: MaxSizeString<20>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Requisite {
     // Required
-    Name(String),
-    PersonalAcc(String),
-    BankName(String),
-    BIC(String),
-    CorrespAcc(String),
+    Name(MaxSizeString<160>),
+    PersonalAcc(ExactSizeString<20>),
+    BankName(MaxSizeString<45>),
+    BIC(ExactSizeString<9>),
+    CorrespAcc(MaxSizeString<20>),
 
     // Additional
-    Sum(String),
-    Purpose(String),
-    PayeeINN(String),
-    PayerINN(String),
-    DrawerStatus(String),
-    KPP(String),
-    CBC(String),
-    OKTMO(String),
-    PaytReason(String),
-    TaxPeriod(String),
-    DocNo(String),
-    DocDate(String),
-    TaxPayKind(String),
+    Sum(MaxSizeString<18>),
+    Purpose(MaxSizeString<210>),
+    PayeeINN(MaxSizeString<12>),
+    PayerINN(MaxSizeString<12>),
+    DrawerStatus(MaxSizeString<2>),
+    KPP(MaxSizeString<9>),
+    CBC(MaxSizeString<20>),
+    OKTMO(MaxSizeString<11>),
+    PaytReason(MaxSizeString<2>),
+    TaxPeriod(MaxSizeString<10>),
+    DocNo(MaxSizeString<15>),
+    DocDate(MaxSizeString<10>),
+    TaxPayKind(MaxSizeString<2>),
 
     // Other
     LastName(String),
@@ -448,24 +449,78 @@ impl TryFrom<(&str, &str)> for Requisite {
 
     fn try_from((key, val): (&str, &str)) -> super::Result<Self> {
         let requisite = match key {
-            "Name" => Requisite::Name(val.to_string()),
-            "PersonalAcc" => Requisite::PersonalAcc(val.to_string()),
-            "BankName" => Requisite::BankName(val.to_string()),
-            "BIC" => Requisite::BIC(val.to_string()),
-            "CorrespAcc" => Requisite::CorrespAcc(val.to_string()),
-            "Sum" => Requisite::Sum(val.to_string()),
-            "Purpose" => Requisite::Purpose(val.to_string()),
-            "PayeeINN" => Requisite::PayeeINN(val.to_string()),
-            "PayerINN" => Requisite::PayerINN(val.to_string()),
-            "DrawerStatus" => Requisite::DrawerStatus(val.to_string()),
-            "KPP" => Requisite::KPP(val.to_string()),
-            "CBC" => Requisite::CBC(val.to_string()),
-            "OKTMO" => Requisite::OKTMO(val.to_string()),
-            "PaytReason" => Requisite::PaytReason(val.to_string()),
-            "TaxPeriod" => Requisite::TaxPeriod(val.to_string()),
-            "DocNo" => Requisite::DocNo(val.to_string()),
-            "DocDate" => Requisite::DocDate(val.to_string()),
-            "TaxPayKind" => Requisite::TaxPayKind(val.to_string()),
+            "Name" => Requisite::Name(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "PersonalAcc" => Requisite::PersonalAcc(
+                val.to_exact_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "BankName" => Requisite::BankName(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "BIC" => Requisite::BIC(
+                val.to_exact_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "CorrespAcc" => Requisite::CorrespAcc(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "Sum" => Requisite::Sum(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "Purpose" => Requisite::Purpose(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "PayeeINN" => Requisite::PayeeINN(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "PayerINN" => Requisite::PayerINN(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "DrawerStatus" => Requisite::DrawerStatus(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "KPP" => Requisite::KPP(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "CBC" => Requisite::CBC(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "OKTMO" => Requisite::OKTMO(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "PaytReason" => Requisite::PaytReason(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "TaxPeriod" => Requisite::TaxPeriod(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "DocNo" => Requisite::DocNo(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "DocDate" => Requisite::DocDate(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
+            "TaxPayKind" => Requisite::TaxPayKind(
+                val.to_max_size()
+                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+            ),
             "LastName" => Requisite::LastName(val.to_string()),
             "FirstName" => Requisite::FirstName(val.to_string()),
             "MiddleName" => Requisite::MiddleName(val.to_string()),
@@ -598,16 +653,18 @@ impl TryFrom<u8> for PaymentEncoding {
 
 #[cfg(test)]
 mod tests {
+    use crate::string_types::StringExt;
+
     use super::{Payment, RequiredRequisite};
 
     #[test]
     fn encoding_test() {
         let payment = Payment::builder().build(RequiredRequisite {
-            name: "ООО «Три кита»".to_string(),
-            personal_acc: "40702810138250123017".to_string(),
-            bank_name: "ОАО \"БАНК\"".to_string(),
-            bic: "044525225".to_string(),
-            correstp_acc: "30101810400000000225".to_string(),
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
         });
 
         let payment = payment.to_gost_format();
@@ -622,11 +679,11 @@ mod tests {
         let parsed_payment = Payment::parser().from_bytes(raw);
 
         let payment = Payment::builder().build(RequiredRequisite {
-            name: "ООО «Три кита»".to_string(),
-            personal_acc: "40702810138250123017".to_string(),
-            bank_name: "ОАО \"БАНК\"".to_string(),
-            bic: "044525225".to_string(),
-            correstp_acc: "30101810400000000225".to_string(),
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
         });
 
         assert_eq!(parsed_payment, Ok(payment));
@@ -639,11 +696,11 @@ mod tests {
         let parsed_payment = Payment::parser().from_str(raw);
 
         let payment = Payment::builder().build(RequiredRequisite {
-            name: "ООО «Три кита»".to_string(),
-            personal_acc: "40702810138250123017".to_string(),
-            bank_name: "ОАО \"БАНК\"".to_string(),
-            bic: "044525225".to_string(),
-            correstp_acc: "30101810400000000225".to_string(),
+            name: "ООО «Три кита»".to_max_size().unwrap(),
+            personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+            bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+            bic: "044525225".to_exact_size().unwrap(),
+            correstp_acc: "30101810400000000225".to_max_size().unwrap(),
         });
 
         assert_eq!(parsed_payment, Ok(payment));

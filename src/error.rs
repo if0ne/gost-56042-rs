@@ -8,9 +8,10 @@ pub enum Error {
     EncodingError,
     RequiredRequisiteNotPresented,
     UnsupportedVersion,
+    UnknownPair(String, String),
     WrongEncodingCode(u8),
     WrongFormatId,
-    WrongPair,
+    WrongPair(String, String),
     WrongRequiredRequisiteOrder,
     WrongTechCode(String),
 }
