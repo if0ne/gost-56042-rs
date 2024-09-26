@@ -177,7 +177,7 @@ mod tests {
         let payment = payment.to_utf8_lossy();
         let payment = payment.as_ref().map(|s| s.as_str());
 
-        assert_eq!(payment, Ok(raw))
+        assert_eq!(payment, Ok(raw));
     }
 
     #[test]
@@ -191,6 +191,6 @@ mod tests {
                 passed: "PersonalAcc".into(),
                 expected: "Name".into()
             })
-        )
+        );
     }
 }

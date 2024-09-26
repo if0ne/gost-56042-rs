@@ -142,7 +142,7 @@ impl<T: CustomRequisites> Payment<T> {
         Ok(buffer)
     }
 
-    /// Заполнение буфера с информацией о платеже согласно ГОСТ-56042.
+    /// Заполнение буфера информацией о платеже согласно ГОСТ-56042.
     pub fn write_to(&self, buffer: &mut Vec<u8>) -> super::Result<()> {
         // Кодирование заголовка
         buffer.push(self.header.format_id[0]);
