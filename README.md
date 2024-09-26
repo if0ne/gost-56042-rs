@@ -45,15 +45,15 @@ assert_eq!(payment, Ok(raw));
 Для парсинга необходимо создать структуру ```PaymentParser``` с помощью ```Payment::parser()```.
 
 ```PaymentParser``` имеет следующие методы:
-* ```from_str(&self, val: &str) -> super::Result<Payment<T>>``` - создание структуры из строки. Предполагается, что данные находятся в формате Utf-8.
-* ```from_bytes(&self, bytes: &[u8]) -> super::Result<Payment<T>>``` - создание структуры из массива байтов.
+* ```parse_from_str(&self, val: &str) -> super::Result<Payment<T>>``` - создание структуры из строки. Предполагается, что данные находятся в формате Utf-8.
+* ```parse_from_bytes(&self, bytes: &[u8]) -> super::Result<Payment<T>>``` - создание структуры из массива байтов.
 
 Пример ```from_str```:
 
 ```rust
 let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225";
 
-let parsed_payment = Payment::parser().from_str(raw);
+let parsed_payment = Payment::parser().parse_from_str(raw);
 
 let payment = Payment::custom_builder(RequiredRequisite {
     name: "ООО «Три кита»".to_max_size().unwrap(),
@@ -72,7 +72,7 @@ assert_eq!(parsed_payment, Ok(payment));
 ```rust
 let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225".as_bytes();
 
-let parsed_payment = Payment::parser().from_bytes(raw);
+let parsed_payment = Payment::parser().parse_from_bytes(raw);
 
 let payment = Payment::custom_builder(RequiredRequisite {
     name: "ООО «Три кита»".to_max_size().unwrap(),
@@ -154,4 +154,58 @@ let payment = payment.to_utf8_lossy();
 let payment = payment.as_ref().map(|s| s.as_str());
 
 assert_eq!(payment, Ok(raw));
+```
+
+### Тип парсеров
+
+Реализованы следующие типы парсеров:
+* ```StrictParser``` - строгий парсер, делает все проверки.
+* ```RequisiteToleranceParser``` - менее строгий парсер, если произошла ошибка в парсинге реквизитов, то она игнорируется.
+* ```LooseParser``` - нестрогий парсер, проверяет только заголовок.
+
+Для создания парсеров используются методы структуры ```Payment```:
+* ```parser() -> PaymentParser```
+* ```pub fn requisite_tolerance_parser() -> PaymentParser<RequisiteToleranceParser>```
+* ```pub fn loose_parser() -> PaymentParser<LooseParser>```
+
+Для каждого метода существует метод ```custom_*```, чтобы указать пользовательские реквизиты.
+
+```StrictParser```:
+
+```rust
+let raw =
+    "ST00012|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225|Тест=42";
+
+let parsed_payment = Payment::parser().parse_from_str(raw);
+
+assert!(parsed_payment.is_err());
+```
+
+```RequisiteToleranceParser```:
+
+```rust
+let raw = "ST00012|Name=ООО «Три кита»|PersonalAcc=40702810138250123017|BankName=ОАО \"БАНК\"|BIC=044525225|CorrespAcc=30101810400000000225|Тест=42|fasfdsfsdfs|  |";
+
+let parsed_payment = Payment::requisite_tolerance_parser().parse_from_str(raw);
+
+let payment = Payment::builder(RequiredRequisite {
+    name: "ООО «Три кита»".to_max_size().unwrap(),
+    personal_acc: "40702810138250123017".to_exact_size().unwrap(),
+    bank_name: "ОАО \"БАНК\"".to_max_size().unwrap(),
+    bic: "044525225".to_exact_size().unwrap(),
+    correstp_acc: "30101810400000000225".to_max_size().unwrap(),
+})
+.build();
+
+assert_eq!(parsed_payment, Ok(payment));
+```
+
+```LooseParser```:
+
+```rust
+let raw = "ST00012|Name=ООО «Три кита»||Тест=42|fasfdsfsdfs|  |";
+
+let parsed_payment = Payment::loose_parser().parse_from_str(raw);
+
+assert_eq!(parsed_payment.unwrap().get("Name"), Some("ООО «Три кита»"));
 ```
