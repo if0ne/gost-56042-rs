@@ -1,4 +1,6 @@
-use std::{fmt::Display, ops::Deref};
+use core::{fmt::Display, ops::Deref};
+
+use alloc::string::{String, ToString};
 
 /// Строка с фиксированным размером, который равен ```N```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -23,9 +25,9 @@ impl<const N: usize> ExactSizeString<N> {
     /// Если строка меньше ```N```, то вернется ```None```.
     pub fn new_strip(val: String) -> Option<Self> {
         match val.chars().count().cmp(&N) {
-            std::cmp::Ordering::Less => None,
-            std::cmp::Ordering::Equal => Some(Self(val)),
-            std::cmp::Ordering::Greater => Some(Self(val.chars().take(N).collect())),
+            core::cmp::Ordering::Less => None,
+            core::cmp::Ordering::Equal => Some(Self(val)),
+            core::cmp::Ordering::Greater => Some(Self(val.chars().take(N).collect())),
         }
     }
 
@@ -39,7 +41,7 @@ impl<const N: usize> ExactSizeString<N> {
 }
 
 impl<const N: usize> Display for ExactSizeString<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -73,8 +75,8 @@ impl<const N: usize> MaxSizeString<N> {
     /// Если размер входной строки больше ```N```, то она обрезается до ```N``` символов.
     pub fn new_strip(val: String) -> Self {
         match val.chars().count().cmp(&N) {
-            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Self(val),
-            std::cmp::Ordering::Greater => Self(val.chars().take(N).collect()),
+            core::cmp::Ordering::Less | core::cmp::Ordering::Equal => Self(val),
+            core::cmp::Ordering::Greater => Self(val.chars().take(N).collect()),
         }
     }
 
@@ -88,7 +90,7 @@ impl<const N: usize> MaxSizeString<N> {
 }
 
 impl<const N: usize> Display for MaxSizeString<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }

@@ -1,6 +1,8 @@
-use std::fmt::{self, Display};
+use core::fmt::{self, Display};
 
-pub type Result<T> = std::result::Result<T, Error>;
+use alloc::string::String;
+
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// Ошибки при создании платежа и парсинге.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,8 +58,8 @@ impl Display for Error {
             Error::UnsupportedVersion { passed, current } => write!(
                 f,
                 "Версия {} не поддерживается, текущая версия {}",
-                std::str::from_utf8(passed).unwrap(),
-                std::str::from_utf8(current).unwrap(),
+                core::str::from_utf8(passed).unwrap(),
+                core::str::from_utf8(current).unwrap(),
             ),
             Error::WrongFormatId(format_id) => write!(
                 f,
@@ -74,4 +76,4 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}

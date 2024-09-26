@@ -1,3 +1,7 @@
+#![no_std]
+
+extern crate alloc;
+
 mod custom;
 mod error;
 mod payment;
@@ -10,6 +14,8 @@ pub use string_types::*;
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use crate::{
         string_types::StringExt, CustomRequisites, Error, Payment, RequiredRequisite, Requisite,
     };

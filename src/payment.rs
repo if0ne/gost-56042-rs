@@ -1,5 +1,6 @@
-use std::{fmt::Display, marker::PhantomData};
+use core::{fmt::Display, marker::PhantomData};
 
+use alloc::{format, string::{String, ToString}, vec::Vec};
 use encoding::Encoding;
 
 use super::{
@@ -76,7 +77,7 @@ impl<T: CustomRequisites> Default for PaymentBuilder<T> {
                     encoding: PaymentEncoding::Utf8,
                     separator: b'|',
                 },
-                requisites: vec![],
+                requisites: Vec::with_capacity(16),
             },
         }
     }
@@ -87,7 +88,7 @@ impl Payment {
     pub fn builder(requisites: RequiredRequisite) -> PaymentBuilder {
         let mut builder = PaymentBuilder::default();
 
-        let required_requisites = vec![
+        let required_requisites = alloc::vec![
             Requisite::Name(requisites.name),
             Requisite::PersonalAcc(requisites.personal_acc),
             Requisite::BankName(requisites.bank_name),
@@ -111,7 +112,7 @@ impl<T: CustomRequisites> Payment<T> {
     pub fn custom_builder(requisites: RequiredRequisite) -> PaymentBuilder<T> {
         let mut builder = PaymentBuilder::<T>::default();
 
-        let required_requisites = vec![
+        let required_requisites = alloc::vec![
             Requisite::Name(requisites.name),
             Requisite::PersonalAcc(requisites.personal_acc),
             Requisite::BankName(requisites.bank_name),
@@ -907,7 +908,7 @@ impl TryFrom<u8> for PaymentEncoding {
 }
 
 impl Display for PaymentEncoding {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             PaymentEncoding::Win1251 => write!(f, "Windows-1251"),
             PaymentEncoding::Utf8 => write!(f, "Utf-8"),
