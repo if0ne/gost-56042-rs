@@ -14,8 +14,6 @@ pub use string_types::*;
 
 #[cfg(test)]
 mod tests {
-    use alloc::string::ToString;
-
     use crate::{
         string_types::StringExt, CustomRequisites, Error, Payment, RequiredRequisite, Requisite,
     };
@@ -90,11 +88,11 @@ mod tests {
         })
         .with_additional_requisites([
             Requisite::PayeeINN("6200098765".to_max_size().unwrap()),
-            Requisite::LastName("Иванов".to_string()),
-            Requisite::FirstName("Иван".to_string()),
-            Requisite::MiddleName("Иванович".to_string()),
+            Requisite::LastName("Иванов".into()),
+            Requisite::FirstName("Иван".into()),
+            Requisite::MiddleName("Иванович".into()),
             Requisite::Purpose("Оплата членского взноса".to_max_size().unwrap()),
-            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".to_string()),
+            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".into()),
             Requisite::Sum("100000".to_max_size().unwrap()),
         ])
         .build();
@@ -115,11 +113,11 @@ mod tests {
         })
         .with_additional_requisites([
             Requisite::PayeeINN("6200098765".to_max_size().unwrap()),
-            Requisite::LastName("Иванов".to_string()),
-            Requisite::FirstName("Иван".to_string()),
-            Requisite::MiddleName("Иванович".to_string()),
+            Requisite::LastName("Иванов".into()),
+            Requisite::FirstName("Иван".into()),
+            Requisite::MiddleName("Иванович".into()),
             Requisite::Purpose("Оплата членского взноса".to_max_size().unwrap()),
-            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".to_string()),
+            Requisite::PayerAddress("г.Рязань ул.Ленина д.10 кв.15".into()),
             Requisite::Sum("100000".to_max_size().unwrap()),
         ])
         .build();
@@ -190,8 +188,8 @@ mod tests {
         assert_eq!(
             parsed_payment,
             Err(Error::WrongRequiredRequisiteOrder {
-                passed: "PersonalAcc".to_string(),
-                expected: "Name".to_string()
+                passed: "PersonalAcc".into(),
+                expected: "Name".into()
             })
         )
     }

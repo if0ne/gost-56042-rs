@@ -1,6 +1,11 @@
 use core::{fmt::Display, marker::PhantomData};
 
-use alloc::{format, string::{String, ToString}, vec::Vec};
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use encoding::Encoding;
 
 use super::{
@@ -248,10 +253,13 @@ impl<T: CustomRequisites> PaymentParser<T> {
         let header = self.read_payment_header_bytes(&bytes)?;
 
         if header.encoding != PaymentEncoding::Utf8 {
-            return Err(super::Error::CorruptedHeader(format!(
-                "Не верная кодировка, должна быть Utf-8, установлена {}",
-                header.encoding
-            )));
+            return Err(super::Error::CorruptedHeader(
+                format!(
+                    "Не верная кодировка, должна быть Utf-8, установлена {}",
+                    header.encoding
+                )
+                .into(),
+            ));
         }
 
         Ok(header)
@@ -260,7 +268,7 @@ impl<T: CustomRequisites> PaymentParser<T> {
     fn read_payment_header_bytes(&self, bytes: &[u8]) -> super::Result<PaymentHeader> {
         if bytes.len() < 8 {
             return Err(super::Error::CorruptedHeader(
-                "Не возможно сформировать заголовок, так как длина меньше 8".to_string(),
+                "Не возможно сформировать заголовок, так как длина меньше 8".into(),
             ));
         }
 
@@ -324,40 +332,40 @@ impl<T: CustomRequisites> PaymentParser<T> {
         let next = req.next();
         if !matches!(next, Some(Requisite::Name(_))) {
             return Err(super::Error::WrongRequiredRequisiteOrder {
-                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
-                expected: "Name".to_string(),
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").into(),
+                expected: "Name".into(),
             });
         }
 
         let next = req.next();
         if !matches!(next, Some(Requisite::PersonalAcc(_))) {
             return Err(super::Error::WrongRequiredRequisiteOrder {
-                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
-                expected: "PersonalAcc".to_string(),
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").into(),
+                expected: "PersonalAcc".into(),
             });
         }
 
         let next = req.next();
         if !matches!(next, Some(Requisite::BankName(_))) {
             return Err(super::Error::WrongRequiredRequisiteOrder {
-                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
-                expected: "BankName".to_string(),
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").into(),
+                expected: "BankName".into(),
             });
         }
 
         let next = req.next();
         if !matches!(next, Some(Requisite::BIC(_))) {
             return Err(super::Error::WrongRequiredRequisiteOrder {
-                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
-                expected: "BIC".to_string(),
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").into(),
+                expected: "BIC".into(),
             });
         }
 
         let next = req.next();
         if !matches!(next, Some(Requisite::CorrespAcc(_))) {
             return Err(super::Error::WrongRequiredRequisiteOrder {
-                passed: next.map(|r| r.key()).unwrap_or("Пусто").to_string(),
-                expected: "CorrespAcc".to_string(),
+                passed: next.map(|r| r.key()).unwrap_or("Пусто").into(),
+                expected: "CorrespAcc".into(),
             });
         }
 
@@ -461,97 +469,97 @@ pub enum Requisite<T: CustomRequisites> {
 
     // Другие
     /// Фамилия плательщика
-    LastName(String),
+    LastName(Box<str>),
 
     /// Имя плательщика
-    FirstName(String),
+    FirstName(Box<str>),
 
     /// Отчество плательщика
-    MiddleName(String),
+    MiddleName(Box<str>),
 
     /// Адрес плательщика
-    PayerAddress(String),
+    PayerAddress(Box<str>),
 
     /// Лицевой счет бюджетного получателя
-    PersonalAccount(String),
+    PersonalAccount(Box<str>),
 
     /// Индекс платежного документа
-    DocIdx(String),
+    DocIdx(Box<str>),
 
     /// № лицевого счета в системе персонифицированного учета в ПФР - СНИЛС
-    PensAcc(String),
+    PensAcc(Box<str>),
 
     /// Номер договора
-    Contract(String),
+    Contract(Box<str>),
 
     /// Номер лицевого счета плательщика в организации (в системе учета ПУ)
-    PersAcc(String),
+    PersAcc(Box<str>),
 
     /// Номер квартиры
-    Flat(String),
+    Flat(Box<str>),
 
     /// Номер телефона
-    Phone(String),
+    Phone(Box<str>),
 
     /// Вид ДУЛ плательщика
-    PayerIdType(String),
+    PayerIdType(Box<str>),
 
     /// Номер ДУЛ плательщика
-    PayerIdNum(String),
+    PayerIdNum(Box<str>),
 
     /// Ф.И.О. ребенка/учащегося
-    ChildFio(String),
+    ChildFio(Box<str>),
 
     /// Дата рождения
-    BirthDate(String),
+    BirthDate(Box<str>),
 
     /// Срок платежа/дата выставления счета
-    PaymTerm(String),
+    PaymTerm(Box<str>),
 
     /// Период оплаты
-    PaymPeriod(String),
+    PaymPeriod(Box<str>),
 
     /// Вид платежа
-    Category(String),
+    Category(Box<str>),
 
     /// Код услуги/название прибора учета
-    ServiceName(String),
+    ServiceName(Box<str>),
 
     /// Номер прибора учета
-    CounterId(String),
+    CounterId(Box<str>),
 
     /// Показание прибора учета
-    CounterVal(String),
+    CounterVal(Box<str>),
 
     /// Номер извещения, начисления, счета
-    QuittId(String),
+    QuittId(Box<str>),
 
     /// Дата извещения/начисления/счета/постановления (для ГИБДД)
-    QuittDate(String),
+    QuittDate(Box<str>),
 
     /// Номер учреждения (образовательного, медицинского)
-    InstNum(String),
+    InstNum(Box<str>),
 
     /// Номер группы детсада/класса школы
-    ClassNum(String),
+    ClassNum(Box<str>),
 
     /// ФИО преподавателя, специалиста, оказывающего услугу
-    SpecFio(String),
+    SpecFio(Box<str>),
 
     /// Сумма страховки/дополнительной услуги/Сумма пени (в копейках)
-    AddAmount(String),
+    AddAmount(Box<str>),
 
     /// Номер постановления (для ГИБДД)
-    RuleId(String),
+    RuleId(Box<str>),
 
     /// Номер исполнительного производства
-    ExecId(String),
+    ExecId(Box<str>),
 
     /// Код вида платежа (например, для платежей в адрес Росреестра)
-    RegType(String),
+    RegType(Box<str>),
 
     /// Уникальный идентификатор начисления
-    UIN(String),
+    UIN(Box<str>),
 
     /// Технический код, рекомендуемый для заполнения поставщиком услуг. Может использоваться принимающей организацией для вызова соответствующей обрабатывающей ИТ-системы.
     TechCode(TechCode),
@@ -681,105 +689,105 @@ impl<T: CustomRequisites> TryFrom<(&str, &str)> for Requisite<T> {
         let requisite = match key {
             "Name" => Requisite::Name(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "PersonalAcc" => Requisite::PersonalAcc(
                 val.to_exact_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "BankName" => Requisite::BankName(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "BIC" => Requisite::BIC(
                 val.to_exact_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "CorrespAcc" => Requisite::CorrespAcc(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "Sum" => Requisite::Sum(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "Purpose" => Requisite::Purpose(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "PayeeINN" => Requisite::PayeeINN(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "PayerINN" => Requisite::PayerINN(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "DrawerStatus" => Requisite::DrawerStatus(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "KPP" => Requisite::KPP(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "CBC" => Requisite::CBC(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "OKTMO" => Requisite::OKTMO(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "PaytReason" => Requisite::PaytReason(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "TaxPeriod" => Requisite::TaxPeriod(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "DocNo" => Requisite::DocNo(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "DocDate" => Requisite::DocDate(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
             "TaxPayKind" => Requisite::TaxPayKind(
                 val.to_max_size()
-                    .ok_or(super::Error::WrongPair(key.to_string(), val.to_string()))?,
+                    .ok_or(super::Error::WrongPair(key.into(), val.into()))?,
             ),
-            "LastName" => Requisite::LastName(val.to_string()),
-            "FirstName" => Requisite::FirstName(val.to_string()),
-            "MiddleName" => Requisite::MiddleName(val.to_string()),
-            "PayerAddress" => Requisite::PayerAddress(val.to_string()),
-            "PersonalAccount" => Requisite::PersonalAccount(val.to_string()),
-            "DocIdx" => Requisite::DocIdx(val.to_string()),
-            "PensAcc" => Requisite::PensAcc(val.to_string()),
-            "Flat" => Requisite::Flat(val.to_string()),
-            "Phone" => Requisite::Phone(val.to_string()),
-            "PayerIdType" => Requisite::PayerIdType(val.to_string()),
-            "PayerIdNum" => Requisite::PayerIdNum(val.to_string()),
-            "ChildFio" => Requisite::ChildFio(val.to_string()),
-            "BirthDate" => Requisite::BirthDate(val.to_string()),
-            "PaymTerm" => Requisite::PaymTerm(val.to_string()),
-            "PaymPeriod" => Requisite::PaymPeriod(val.to_string()),
-            "Category" => Requisite::Category(val.to_string()),
-            "ServiceName" => Requisite::ServiceName(val.to_string()),
-            "CounterId" => Requisite::CounterId(val.to_string()),
-            "CounterVal" => Requisite::CounterVal(val.to_string()),
-            "QuittId" => Requisite::QuittId(val.to_string()),
-            "QuittDate" => Requisite::QuittDate(val.to_string()),
-            "InstNum" => Requisite::InstNum(val.to_string()),
-            "ClassNum" => Requisite::ClassNum(val.to_string()),
-            "SpecFio" => Requisite::SpecFio(val.to_string()),
-            "AddAmount" => Requisite::AddAmount(val.to_string()),
-            "RuleId" => Requisite::RuleId(val.to_string()),
-            "ExecId" => Requisite::ExecId(val.to_string()),
-            "RegType" => Requisite::RegType(val.to_string()),
-            "UIN" => Requisite::UIN(val.to_string()),
+            "LastName" => Requisite::LastName(val.into()),
+            "FirstName" => Requisite::FirstName(val.into()),
+            "MiddleName" => Requisite::MiddleName(val.into()),
+            "PayerAddress" => Requisite::PayerAddress(val.into()),
+            "PersonalAccount" => Requisite::PersonalAccount(val.into()),
+            "DocIdx" => Requisite::DocIdx(val.into()),
+            "PensAcc" => Requisite::PensAcc(val.into()),
+            "Flat" => Requisite::Flat(val.into()),
+            "Phone" => Requisite::Phone(val.into()),
+            "PayerIdType" => Requisite::PayerIdType(val.into()),
+            "PayerIdNum" => Requisite::PayerIdNum(val.into()),
+            "ChildFio" => Requisite::ChildFio(val.into()),
+            "BirthDate" => Requisite::BirthDate(val.into()),
+            "PaymTerm" => Requisite::PaymTerm(val.into()),
+            "PaymPeriod" => Requisite::PaymPeriod(val.into()),
+            "Category" => Requisite::Category(val.into()),
+            "ServiceName" => Requisite::ServiceName(val.into()),
+            "CounterId" => Requisite::CounterId(val.into()),
+            "CounterVal" => Requisite::CounterVal(val.into()),
+            "QuittId" => Requisite::QuittId(val.into()),
+            "QuittDate" => Requisite::QuittDate(val.into()),
+            "InstNum" => Requisite::InstNum(val.into()),
+            "ClassNum" => Requisite::ClassNum(val.into()),
+            "SpecFio" => Requisite::SpecFio(val.into()),
+            "AddAmount" => Requisite::AddAmount(val.into()),
+            "RuleId" => Requisite::RuleId(val.into()),
+            "ExecId" => Requisite::ExecId(val.into()),
+            "RegType" => Requisite::RegType(val.into()),
+            "UIN" => Requisite::UIN(val.into()),
             "TechCode" => Requisite::TechCode(TechCode::from_str(val)?),
             _ => Requisite::Custom((key, val).try_into()?),
         };
@@ -875,7 +883,7 @@ impl TechCode {
             "13" => Ok(TechCode::SportHealth),
             "14" => Ok(TechCode::Charity),
             "15" => Ok(TechCode::Other),
-            _ => Err(super::Error::UnknownTechCode(val.to_string())),
+            _ => Err(super::Error::UnknownTechCode(val.into())),
         }
     }
 }

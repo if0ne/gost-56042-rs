@@ -1,6 +1,6 @@
 use core::fmt::{self, Display};
 
-use alloc::string::String;
+use alloc::boxed::Box;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -8,7 +8,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Ошибка при парсинге заголовка.
-    CorruptedHeader(String),
+    CorruptedHeader(Box<str>),
 
     /// Ошибка при декодировании тела.
     DecodingError,
@@ -20,13 +20,13 @@ pub enum Error {
     RequiredRequisiteNotPresented,
 
     /// Неизвестная пара реквизитов.
-    UnknownPair(String, String),
+    UnknownPair(Box<str>, Box<str>),
 
     /// Неизвестный код для кодировки.
     UnknownEncodingCode(u8),
 
     /// Неизвестный технический код платежа.
-    UnknownTechCode(String),
+    UnknownTechCode(Box<str>),
 
     /// Неподдерживаемая версия.
     UnsupportedVersion { passed: [u8; 4], current: [u8; 4] },
@@ -35,10 +35,13 @@ pub enum Error {
     WrongFormatId([u8; 2]),
 
     /// Неправильное значение для пары-значения.
-    WrongPair(String, String),
+    WrongPair(Box<str>, Box<str>),
 
     /// Неправильный порядок обязательных реквизитов.
-    WrongRequiredRequisiteOrder { passed: String, expected: String },
+    WrongRequiredRequisiteOrder {
+        passed: Box<str>,
+        expected: Box<str>,
+    },
 }
 
 impl Display for Error {

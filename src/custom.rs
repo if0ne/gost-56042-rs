@@ -1,5 +1,3 @@
-use alloc::string::ToString;
-
 /// Трейт необходим для расширения списка реквизитов.
 ///
 /// Лучше всего реализовывать на `enum` типах.
@@ -28,9 +26,6 @@ impl TryFrom<(&str, &str)> for NoCustomRequisites {
     type Error = super::Error;
 
     fn try_from((key, value): (&str, &str)) -> Result<Self, Self::Error> {
-        Err(super::Error::UnknownPair(
-            key.to_string(),
-            value.to_string(),
-        ))
+        Err(super::Error::UnknownPair(key.into(), value.into()))
     }
 }
