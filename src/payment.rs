@@ -1,4 +1,7 @@
-use core::{fmt::Display, marker::PhantomData};
+use core::{
+    fmt::{Debug, Display},
+    marker::PhantomData,
+};
 
 use alloc::{
     boxed::Box,
@@ -204,6 +207,19 @@ impl<T: CustomRequisites> Payment<T> {
     }
 }
 
+impl<T: CustomRequisites> Display for Payment<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(&self.header, f)?;
+
+        for req in self.requisites.iter() {
+            write!(f, "{}", self.header.separator())?;
+            Display::fmt(req, f)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Парсер из строки в структуру с информацией о платеже.
 #[derive(Debug)]
 pub struct PaymentParser<T: CustomRequisites = NoCustomRequisites> {
@@ -396,6 +412,49 @@ pub struct PaymentHeader {
 
     /// Разделитель
     separator: u8,
+}
+
+impl PaymentHeader {
+    /// Идентификатор формата
+    pub fn format_id(&self) -> [char; 2] {
+        [self.format_id[0] as char, self.format_id[1] as char]
+    }
+
+    /// Версия стандарта
+    pub fn version(&self) -> [char; 4] {
+        [
+            self.version[0] as char,
+            self.version[1] as char,
+            self.version[2] as char,
+            self.version[3] as char,
+        ]
+    }
+
+    /// Версия стандарта
+    pub fn encoding(&self) -> PaymentEncoding {
+        self.encoding
+    }
+
+    /// Версия стандарта
+    pub fn separator(&self) -> char {
+        self.separator as char
+    }
+}
+
+impl Display for PaymentHeader {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}",
+            self.format_id[0] as char,
+            self.format_id[1] as char,
+            self.version[0] as char,
+            self.version[1] as char,
+            self.version[2] as char,
+            self.version[3] as char,
+            self.encoding as u8 as char,
+        )
+    }
 }
 
 /// Требуемые реквизиты.
@@ -793,6 +852,12 @@ impl<T: CustomRequisites> TryFrom<(&str, &str)> for Requisite<T> {
         };
 
         Ok(requisite)
+    }
+}
+
+impl<T: CustomRequisites> Display for Requisite<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}={}", self.key(), self.value())
     }
 }
 
