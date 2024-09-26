@@ -2,6 +2,11 @@
 name = "gost-56042"
 version = "0.1.0"
 edition = "2021"
+authors = ["Pavel Agafonov <pavel.agafonov.al@gmail.com>"]
+description = """Library for working with Russian Standard GOST-56042"""
+license = "MIT"
+keywords = ["no_std", "gost", "bank", "qr-code"]
+repository = "https://github.com/if0ne/gost-56042-rs"
 
 [dependencies]
 encoding = "0.2.33"
